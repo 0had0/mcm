@@ -1,40 +1,40 @@
 # MCM - Multi-Provider Claude Code Manager
 
+[![][ci-badge]][ci] [![][release-badge]][releases]
+
+[ci-badge]: https://github.com/hadih/mcm/workflows/CI/badge.svg
+[release-badge]: https://img.shields.io/github/v/release/hadih/mcm
+
 A CLI tool for managing multiple AI provider configurations for Claude Code CLI, inspired by nvm.
 
 ## Features
 
-- **Pure Bash** - No Python or external dependencies
+- **Provider Registry** - Providers fetched from GitHub, community-contributed
+- **Local Caching** - Works offline with cached providers
 - **Encrypted Storage** - API keys encrypted with AES-256
-- **System-wide Install** - Works with Homebrew, MacPorts, pacman, apt
-- **macOS & Linux** - Tested on both platforms
+- **macOS & Linux** - Pure bash + Python
 
 ## Quick Install
 
-### User Install (Recommended)
 ```bash
-git clone <repo-url>
+git clone https://github.com/hadih/mcm.git
 cd mcm
-make user-install
-source ~/.bashrc
-```
-
-### System-wide Install (requires sudo)
-```bash
-git clone <repo-url>
-cd mcm
-sudo make install
+./mcm.sh install
+source ~/.bashrc  # or ~/.zshrc
 ```
 
 ## Usage
 
 ```bash
-mcm install              # Install MCM
-mcm add kimi             # Add Kimi
-mcm add minimax           # Add MiniMax
+mcm install              # Install MCM (first time)
+mcm update               # Fetch latest providers
 mcm list                 # List providers
+mcm add kimi             # Add Kimi
+mcm add minimax          # Add MiniMax
 mcm use kimi             # Switch to Kimi
-cc                       # Launch Claude Code
+cc                       # Launch Claude Code with Kimi
+mcm rm kimi              # Remove provider
+mcm doctor               # Diagnostics
 ```
 
 ## Commands
@@ -42,54 +42,54 @@ cc                       # Launch Claude Code
 | Command | Description |
 |---------|-------------|
 | `mcm install` | Install MCM and generate encryption key |
+| `mcm update` | Fetch latest providers from registry |
 | `mcm add <id>` | Add API key for a provider |
 | `mcm list` | List all providers |
 | `mcm use <id>` | Switch to provider |
 | `mcm rm <id>` | Remove provider |
 | `mcm doctor` | Run diagnostics |
 
-## Package Manager Installation
+## System-wide Install
 
 ### Homebrew
+
 ```bash
-# Clone, then:
+git clone https://github.com/hadih/mcm.git
+cd mcm
 sudo make install PREFIX=$(brew --prefix)
 ```
 
 ### pacman (Arch)
+
 ```bash
-# Use PKGBUILD:
+git clone https://github.com/hadih/mcm.git
+cd mcm
 makepkg -si
 ```
 
-### apt
-```bash
-# Create deb from Makefile
+## Provider Registry
+
+Providers are stored in `providers.json` and fetched from:
+```
+https://raw.githubusercontent.com/hadih/mcm/main/mcm/providers.json
 ```
 
-## Adding Providers
-
-Edit `providers.conf`:
-
-```
-# Format: id|name|models|base_url|api_key_var|api_link
-# id|ENV_VAR|value
-
-kimi|Kimi|Kimi-for-Coding|https://api.kimi.com/coding/|KIMI_API_KEY|https://platform.moonshot.cn
-kimi|KIMI_ANTHROPIC_MODEL|kimi-for-coding
-
-minimax|MiniMax|MiniMax-Text-01|https://api.minimax.chat/v1|MINIMAX_API_KEY|https://minimax.io
-minimax|MINIMAX_ANTHROPIC_MODEL|MiniMax-Text-01
-```
-
-## Supported Providers
-
-| Provider | ID |
-|----------|-----|
-| Kimi | `kimi` |
-| GLM (Z.AI) | `glm` |
-| MiniMax | `minimax` |
+To add a new provider, submit a PR to [`mcm/providers.json`](mcm/providers.json).
 
 ## Security
 
-API keys encrypted with AES-256. **Backup `~/.mcm/.key`** - without it, keys cannot be recovered.
+- API keys encrypted with AES-256-CBC
+- Encryption key stored in `~/.mcm/.key`
+- **ALWAYS backup your encryption key**
+
+## Supported Providers
+
+| Provider | ID | API Docs |
+|----------|-----|----------|
+| Kimi | `kimi` | [Moonshot](https://platform.moonshot.cn/docs/api/chat) |
+| GLM (Z.AI) | `glm` | [Z.AI](https://z.ai/zh-ai/welcome) |
+| MiniMax | `minimax` | [MiniMax](https://www.minimax.io/) |
+
+## License
+
+MIT

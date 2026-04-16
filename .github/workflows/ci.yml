@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+  release:
+    types:
+      - published
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run tests
+        run: |
+          cd mcm
+          chmod +x mcm.sh ccwrap.sh
+          ./mcm.sh help | grep -q "MCM"
+          ./mcm.sh version | grep -q "0."
+          ./mcm.sh list | grep -q "Providers"
+          ./mcm.sh doctor | grep -q "diagnostics"
+
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate providers
+        run: python3 mcm/tests/validate_providers.py

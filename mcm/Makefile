@@ -4,34 +4,28 @@
 PREFIX ?= /usr/local
 SBINDIR ?= $(PREFIX)/bin
 DATADIR ?= $(PREFIX)/share/mcm
-SYSCONFDIR ?= /etc/mcm
 
 INSTALL ?= install
 RM ?= rm -f
 MKDIR ?= mkdir -p
-CHMOD ?= chmod
 
-# Installation targets
-.PHONY: install uninstall user-install user-uninstall clean help
+.PHONY: install uninstall user-install user-uninstall clean help test
 
 # System-wide install (requires sudo)
 install:
 	@echo "Installing MCM to $(SBINDIR)..."
 	$(MKDIR) -p $(DESTDIR)$(SBINDIR)
 	$(MKDIR) -p $(DESTDIR)$(DATADIR)
-	$(MKDIR) -p $(DESTDIR)$(SYSCONFDIR)
 	$(INSTALL) -m 755 mcm.sh $(DESTDIR)$(SBINDIR)/mcm
 	$(INSTALL) -m 644 ccwrap.sh $(DESTDIR)$(SBINDIR)/ccwrap
-	$(INSTALL) -m 644 providers.conf $(DESTDIR)$(DATADIR)/providers.conf
+	$(INSTALL) -m 644 providers.json $(DESTDIR)$(DATADIR)/providers.json
 	@echo ""
 	@echo "MCM installed to $(SBINDIR)/mcm"
-	@echo "Providers installed to $(DATADIR)/providers.conf"
+	@echo "Providers installed to $(DATADIR)/providers.json"
 	@echo ""
 	@echo "Add to ~/.bashrc or ~/.zshrc:"
 	@echo "  export MCM_DIR=$$HOME/.mcm"
-	@echo "  export MCM_PROVIDERS=\"$(DATADIR)/providers.conf\""
-	@echo "  source $$(which ccwrap.sh)"
-	@echo "  alias cc='ccwrap'"
+	@echo "  source $(SBINDIR)/ccwrap"
 
 # User install (no sudo required)
 user-install:
@@ -40,14 +34,13 @@ user-install:
 	$(MKDIR) -p $(DESTDIR)$(HOME)/.local/share/mcm
 	$(INSTALL) -m 755 mcm.sh $(DESTDIR)$(HOME)/.local/bin/mcm
 	$(INSTALL) -m 644 ccwrap.sh $(DESTDIR)$(HOME)/.local/bin/ccwrap
-	$(INSTALL) -m 644 providers.conf $(DESTDIR)$(HOME)/.local/share/mcm/providers.conf
+	$(INSTALL) -m 644 providers.json $(DESTDIR)$(HOME)/.local/share/mcm/providers.json
 	@echo ""
 	@echo "MCM installed to $$HOME/.local/bin/"
 	@echo ""
 	@echo "Add to ~/.bashrc or ~/.zshrc:"
 	@echo "  export PATH=\"$$HOME/.local/bin:$$PATH\""
 	@echo "  export MCM_DIR=$$HOME/.mcm"
-	@echo "  export MCM_PROVIDERS=\"$$HOME/.local/share/mcm/providers.conf\""
 	@echo "  source $$HOME/.local/bin/ccwrap"
 
 # System-wide uninstall (requires sudo)
@@ -66,6 +59,11 @@ user-uninstall:
 	$(RM) -r $(DESTDIR)$(HOME)/.local/share/mcm
 	@echo "MCM removed from $$HOME/.local"
 
+# Run tests
+test:
+	@chmod +x tests/run_tests.sh
+	@./tests/run_tests.sh
+
 help:
 	@echo "MCM - Multi-Provider Claude Code Manager"
 	@echo ""
@@ -74,6 +72,7 @@ help:
 	@echo "  make user-install   - User install (no sudo)"
 	@echo "  make uninstall      - Remove system-wide install"
 	@echo "  make user-uninstall - Remove user install"
+	@echo "  make test           - Run tests"
 	@echo ""
 	@echo "Variables:"
 	@echo "  PREFIX=$(PREFIX)"
