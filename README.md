@@ -1,66 +1,95 @@
-# Claude Code Multi-Provider Tools
+# MCM - Multi-Provider Claude Code Manager
 
-This repository contains tools for managing multiple AI provider configurations for Claude Code CLI.
+A CLI tool for managing multiple AI provider configurations for Claude Code CLI, inspired by nvm.
 
-## MCM - Multi-Provider Claude Code Manager (Recommended)
+## Features
 
-A modern CLI tool inspired by nvm for managing provider configurations.
+- **Pure Bash** - No Python or external dependencies
+- **Encrypted Storage** - API keys encrypted with AES-256
+- **System-wide Install** - Works with Homebrew, MacPorts, pacman, apt
+- **macOS & Linux** - Tested on both platforms
 
+## Quick Install
+
+### User Install (Recommended)
 ```bash
-git clone <repo-url> mcm
+git clone <repo-url>
 cd mcm
-./mcm.sh install
+make user-install
 source ~/.bashrc
 ```
 
+### System-wide Install (requires sudo)
 ```bash
-mcm add kimi        # Add provider
-mcm list            # List providers
-mcm use kimi        # Switch provider
-cc                  # Launch with active provider
+git clone <repo-url>
+cd mcm
+sudo make install
 ```
 
-### Features
-- **Encrypted API key storage** (AES-256)
-- **Auto-generated encryption key** on install
-- **Provider management**: add, list, switch, remove
-- **Diagnostics**: `mcm doctor`
+## Usage
 
-## claude_switcher (Legacy)
-
-The original shell-based switcher. Kept for reference.
-
-### Installation (Legacy)
 ```bash
-./claude_switcher/setup.sh
+mcm install              # Install MCM
+mcm add kimi             # Add Kimi
+mcm add minimax           # Add MiniMax
+mcm list                 # List providers
+mcm use kimi             # Switch to Kimi
+cc                       # Launch Claude Code
+```
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `mcm install` | Install MCM and generate encryption key |
+| `mcm add <id>` | Add API key for a provider |
+| `mcm list` | List all providers |
+| `mcm use <id>` | Switch to provider |
+| `mcm rm <id>` | Remove provider |
+| `mcm doctor` | Run diagnostics |
+
+## Package Manager Installation
+
+### Homebrew
+```bash
+# Clone, then:
+sudo make install PREFIX=$(brew --prefix)
+```
+
+### pacman (Arch)
+```bash
+# Use PKGBUILD:
+makepkg -si
+```
+
+### apt
+```bash
+# Create deb from Makefile
 ```
 
 ## Adding Providers
 
-Providers are defined in `providers.json`. Community contributions welcome!
+Edit `providers.conf`:
 
-```json
-{
-  "id": "newprovider",
-  "name": "Provider Name",
-  "models": "Model-Name",
-  "base_url": "https://api.example.com",
-  "api_key_var": "PROVIDER_API_KEY",
-  "api_link": "https://example.com/docs",
-  "env_vars": {}
-}
 ```
+# Format: id|name|models|base_url|api_key_var|api_link
+# id|ENV_VAR|value
 
-## Security
+kimi|Kimi|Kimi-for-Coding|https://api.kimi.com/coding/|KIMI_API_KEY|https://platform.moonshot.cn
+kimi|KIMI_ANTHROPIC_MODEL|kimi-for-coding
 
-- API keys are **never committed** to version control
-- MCM encrypts keys with AES-256-CBC
-- **Backup your encryption key at `~/.mcm/.key`**
+minimax|MiniMax|MiniMax-Text-01|https://api.minimax.chat/v1|MINIMAX_API_KEY|https://minimax.io
+minimax|MINIMAX_ANTHROPIC_MODEL|MiniMax-Text-01
+```
 
 ## Supported Providers
 
-| Provider | ID | API Docs |
-|----------|-----|----------|
-| Kimi | `kimi` | [Moonshot](https://platform.moonshot.cn/docs/api/chat) |
-| GLM (Z.AI) | `glm` | [Z.AI](https://z.ai/zh-ai/welcome) |
-| MiniMax | `minimax` | [MiniMax](https://www.minimax.io/) |
+| Provider | ID |
+|----------|-----|
+| Kimi | `kimi` |
+| GLM (Z.AI) | `glm` |
+| MiniMax | `minimax` |
+
+## Security
+
+API keys encrypted with AES-256. **Backup `~/.mcm/.key`** - without it, keys cannot be recovered.

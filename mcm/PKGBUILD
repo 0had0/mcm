@@ -1,0 +1,22 @@
+# MCM PKGBUILD for Arch Linux
+# Place in: ~/.local/share/makepkg/ or your AUR helper
+
+pkgname=mcm
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Multi-Provider Claude Code Manager"
+arch=('any')
+url="https://github.com/yourusername/mcm"
+license=('MIT')
+depends=('openssl' 'bash')
+optdepends=('bash-completion: tab completion')
+source=("$pkgname-$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+package() {
+    install -Dm755 mcm.sh "$pkgdir/usr/bin/mcm"
+    install -Dm755 ccwrap.sh "$pkgdir/usr/bin/ccwrap"
+    install -Dm644 providers.conf "$pkgdir/usr/share/mcm/providers.conf"
+    install -Dm644 completions.bash "$pkgdir/usr/share/bash-completion/completions/mcm"
+    install -Dm644 completions.zsh "$pkgdir/usr/share/zsh/site-functions/_mcm"
+}
