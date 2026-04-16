@@ -2,6 +2,14 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROVIDERS_FILE="$SCRIPT_DIR/providers.json"
+
+if [[ ! -f "$PROVIDERS_FILE" ]]; then
+    echo "Error: providers.json not found at $PROVIDERS_FILE"
+    exit 1
+fi
+
 # ==========================================
 # Colors
 # ==========================================
@@ -14,45 +22,151 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 DIM='\033[2m'
 RESET='\033[0m'
+UNDERLINE='\033[4m'
 
 # ==========================================
-# Provider Definitions
+# Load Providers from JSON
 # ==========================================
-declare -A PROVIDERS=(
-    ["1"]="kimi"
-    ["2"]="glm"
-    ["3"]="minimax"
-)
+load_providers() {
+    local json=$(cat "$PROVIDERS_FILE")
+    
+    PROVIDER_IDS=()
+    declare -A PROVIDER_NAMES
+    declare -A PROVIDER_MODELS
+    declare -A PROVIDER_BASE_URLS
+    declare -A PROVIDER_LINKS
+    declare -A PROVIDER_API_KEYS
+    declare -A PROVIDER_ENV_VARS
+    
+    local count=0
+    while IFS= read -r line; do
+        count=$((count + 1))
+        
+        local id=$(echo "$line" | grep -o '"id"[[:space:]]*:[[:space:]]*"[^"]*"' | cut -d'"' -f4)
+        local name=$(echo "$line" | grep -o '"name"[[:space:]]*:[[:space:]]*"[^"]*"' | cut -d'"' -f4)
+        local models=$(echo "$line" | grep -o '"models"[[:space:]]*:[[:space:]]*"[^"]*"' | cut -d'"' -f4)
+        local base_url=$(echo "$line" | grep -o '"base_url"[[:space:]]*:[[:space:]]*"[^"]*"' | cut -d'"' -f4)
+        local api_link=$(echo "$line" | grep -o '"api_link"[[:space:]]*:[[:space:]]*"[^"]*"' | cut -d'"' -f4)
+        local api_key_var=$(echo "$line" | grep -o '"api_key_var"[[:space:]]*:[[:space:]]*"[^"]*"' | cut -d'"' -f4)
+        local env_vars=$(echo "$line" | grep -o '"env_vars"[[:space:]]*:[[:space:]]*{[^}]*}' | sed 's/"env_vars"[[:space:]]*:[[:space:]]*//')
+        
+        if [[ -n "$id" ]]; then
+            PROVIDER_IDS+=("$id")
+            PROVIDER_NAMES[$id]="$name"
+            PROVIDER_MODELS[$id]="$models"
+            PROVIDER_BASE_URLS[$id]="$base_url"
+            PROVIDER_LINKS[$id]="$api_link"
+            PROVIDER_API_KEYS[$id]="$api_key_var"
+            PROVIDER_ENV_VARS[$id]="$env_vars"
+        fi
+    done <<< "$(echo "$json" | grep -E '^\s*{' -A 20 | grep -E '^\s*{|^\s*}')"
+}
 
-declare -A PROVIDER_NAMES=(
-    ["kimi"]="Kimi"
-    ["glm"]="GLM (Z.AI)"
-    ["minimax"]="MiniMax"
-)
+# Simpler JSON parsing using python if available
+load_providers_python() {
+    if command -v python3 > /dev/null 2>&1; then
+        python3 << 'PYEOF'
+import json
+import sys
+import os
 
-declare -A PROVIDER_MODELS=(
-    ["kimi"]="Kimi-for-Coding"
-    ["glm"]="GLM-4.7 / GLM-4.5-Air"
-    ["minimax"]="MiniMax-Text-01"
-)
+providers_file = os.path.join(os.path.dirname(__file__) if '__file__' in dir() else os.getcwd(), 'providers.json')
 
-declare -A PROVIDER_BASE_URLS=(
-    ["kimi"]="https://api.kimi.com/coding/"
-    ["glm"]="https://api.z.ai/api/anthropic"
-    ["minimax"]="https://api.minimax.chat/v1"
-)
+try:
+    with open(providers_file) as f:
+        data = json.load(f)
+    
+    for i, p in enumerate(data.get('providers', [])):
+        print(f"PROVIDER_{i}_ID={p['id']}")
+        print(f"PROVIDER_{i}_NAME={p['name']}")
+        print(f"PROVIDER_{i}_MODELS={p['models']}")
+        print(f"PROVIDER_{i}_BASE_URL={p['base_url']}")
+        print(f"PROVIDER_{i}_API_LINK={p['api_link']}")
+        print(f"PROVIDER_{i}_API_KEY_VAR={p['api_key_var']}")
+        
+        env_vars_str = json.dumps(p.get('env_vars', {}))
+        print(f"PROVIDER_{i}_ENV_VARS={env_vars_str}")
+        print("---")
+except Exception as e:
+    sys.exit(1)
+PYEOF
+        return 0
+    fi
+    return 1
+}
 
-declare -A PROVIDER_LINKS=(
-    ["kimi"]="https://platform.moonshot.cn/docs/api/chat"
-    ["glm"]="https://z.ai/zh-ai/welcome"
-    ["minimax"]="https://www.minimax.io/"
-)
+load_providers_simple() {
+    local json_content=$(cat "$PROVIDERS_FILE")
+    
+    local count=$(echo "$json_content" | grep -o '"id"' | wc -l)
+    
+    for ((i=0; i<count; i++)); do
+        local id=$(echo "$json_content" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+print(data['providers'][$i]['id'])
+" 2>/dev/null || echo "unknown")
+        
+        if [[ "$id" != "unknown" ]]; then
+            PROVIDER_IDS+=("$id")
+        fi
+    done
+    
+    for id in "${PROVIDER_IDS[@]}"; do
+        local idx=$(echo "$json_content" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+for i, p in enumerate(data['providers']):
+    if p['id'] == '$id':
+        print(i)
+        break
+" 2>/dev/null)
+        
+        if [[ -n "$idx" ]]; then
+            PROVIDER_NAMES[$id]=$(echo "$json_content" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+print(data['providers'][$idx]['name'])
+" 2>/dev/null)
+            PROVIDER_MODELS[$id]=$(echo "$json_content" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+print(data['providers'][$idx]['models'])
+" 2>/dev/null)
+            PROVIDER_BASE_URLS[$id]=$(echo "$json_content" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+print(data['providers'][$idx]['base_url'])
+" 2>/dev/null)
+            PROVIDER_LINKS[$id]=$(echo "$json_content" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+print(data['providers'][$idx]['api_link'])
+" 2>/dev/null)
+            PROVIDER_API_KEYS[$id]=$(echo "$json_content" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+print(data['providers'][$idx]['api_key_var'])
+" 2>/dev/null)
+            PROVIDER_ENV_VARS[$id]=$(echo "$json_content" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+import json as j
+print(j.dumps(data['providers'][$idx].get('env_vars', {})))
+" 2>/dev/null)
+        fi
+    done
+}
 
-declare -A PROVIDER_API_KEYS=(
-    ["kimi"]="KIMI_API_KEY"
-    ["glm"]="ZAI_API_KEY"
-    ["minimax"]="MINIMAX_API_KEY"
-)
+declare -a PROVIDER_IDS
+declare -A PROVIDER_NAMES
+declare -A PROVIDER_MODELS
+declare -A PROVIDER_BASE_URLS
+declare -A PROVIDER_LINKS
+declare -A PROVIDER_API_KEYS
+declare -A PROVIDER_ENV_VARS
+
+load_providers_simple
 
 # ==========================================
 # Helper Functions
@@ -62,9 +176,9 @@ clear_screen() {
 }
 
 print_banner() {
-    cat << 'EOF'
+    cat << EOF
 
-    ┌─────────────────────────────────────────────────────────────┐
+${CYAN}    ┌─────────────────────────────────────────────────────────────┐
     │                                                             │
     │   ██████╗ ████████╗ ██████╗██████╗  ██████╗                 │
     │   ██╔══██╗╚══██╔══╝██╔════╝██╔══██╗██╔═══██╗                │
@@ -77,7 +191,7 @@ print_banner() {
     │           │   Multi-Provider Switcher   │                   │
     │           └──────────────────────────────┘                   │
     │                                                             │
-    └─────────────────────────────────────────────────────────────┘
+    └─────────────────────────────────────────────────────────────┘${RESET}
 
 EOF
 }
@@ -89,13 +203,14 @@ print_step() {
 
 print_provider_card() {
     local num=$1
-    local name=$2
-    local model=$3
-    local link=$4
+    local id=$2
+    local name="${PROVIDER_NAMES[$id]}"
+    local model="${PROVIDER_MODELS[$id]}"
+    local link="${PROVIDER_LINKS[$id]}"
     
     echo -e "  ${MAGENTA}[$num]${RESET} ${BOLD}$name${RESET}"
     echo -e "      ${DIM}Model:${RESET} $model"
-    echo -e "      ${DIM}API:${RESET} ${CYAN}$link${RESET}"
+    echo -e "      ${DIM}API:${RESET} ${CYAN}${UNDERLINE}$link${RESET}"
     echo
 }
 
@@ -105,10 +220,68 @@ wait_for_enter() {
     read -r
 }
 
+get_env_vars_block() {
+    local id=$1
+    local env_vars_json="${PROVIDER_ENV_VARS[$id]}"
+    
+    local env_block=""
+    
+    local count=$(echo "$env_vars_json" | grep -o '"' | wc -l)
+    count=$((count / 2))
+    
+    if command -v python3 > /dev/null 2>&1; then
+        env_block=$(echo "$env_vars_json" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+for key, value in data.items():
+    print(f'    export {key}=\"{value}\"')
+" 2>/dev/null)
+    else
+        while IFS=': ' read -r key value; do
+            [[ -z "$key" || -z "$value" ]] && continue
+            key=$(echo "$key" | tr -d '"')
+            value=$(echo "$value" | tr -d '", ')
+            env_block="${env_block}
+    export $key=\"$value\""
+        done <<< "$(echo "$env_vars_json" | tr ',' '\n' | tr -d '{}"')"
+    fi
+    
+    echo "$env_block"
+}
+
+generate_setup_function() {
+    local id=$1
+    local base_url="${PROVIDER_BASE_URLS[$id]}"
+    local api_key_var="${PROVIDER_API_KEYS[$id]}"
+    local env_vars="${PROVIDER_ENV_VARS[$id]}"
+    
+    local func_name="_cc_setup_$id"
+    
+    cat << EOF
+
+$func_name() {
+    unset ANTHROPIC_API_KEY
+    export ANTHROPIC_BASE_URL="$base_url"
+    export ANTHROPIC_AUTH_TOKEN="\$$api_key_var"
+$(echo "$env_vars" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+for key, value in data.items():
+    print(f'    export {key}=\"{value}\"')
+" 2>/dev/null || echo "    # Configure env vars manually")
+}
+EOF
+}
+
 # ==========================================
 # Main Setup Flow
 # ==========================================
 main() {
+    if [[ ${#PROVIDER_IDS[@]} -eq 0 ]]; then
+        echo "Error: No providers found in providers.json"
+        exit 1
+    fi
+    
     clear_screen
     print_banner
     
@@ -162,8 +335,10 @@ main() {
     echo -e "Choose which providers to configure:"
     echo
     
-    for key in 1 2 3; do
-        print_provider_card "$key" "${PROVIDER_NAMES[$key]}" "${PROVIDER_MODELS[$key]}" "${PROVIDER_LINKS[$key]}"
+    local num=1
+    for id in "${PROVIDER_IDS[@]}"; do
+        print_provider_card "$num" "$id"
+        num=$((num + 1))
     done
     
     echo -e "${DIM}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
@@ -176,16 +351,18 @@ main() {
     SELECTED_PROVIDERS=()
     
     if [[ "$selection" == "a" || "$selection" == "A" || "$selection" == "" ]]; then
-        SELECTED_PROVIDERS=(1 2 3)
+        SELECTED_PROVIDERS=("${PROVIDER_IDS[@]}")
     elif [[ "$selection" == "n" || "$selection" == "N" ]]; then
         echo
         echo -e "${YELLOW}No providers selected.${RESET}"
     else
         IFS=',' read -ra TEMP <<< "$selection"
+        local idx=0
         for item in "${TEMP[@]}"; do
             item=$(echo "$item" | tr -d ' ')
-            if [[ -n "${PROVIDERS[$item]}" ]]; then
-                SELECTED_PROVIDERS+=("$item")
+            idx=$((item - 1))
+            if [[ $idx -ge 0 && $idx -lt ${#PROVIDER_IDS[@]} ]]; then
+                SELECTED_PROVIDERS+=("${PROVIDER_IDS[$idx]}")
             fi
         done
     fi
@@ -202,7 +379,7 @@ main() {
         echo -e "${DIM}Skipping API key configuration.${RESET}"
     else
         echo -e "You'll need API keys for each provider."
-        echo -e "Click the links above to get your keys."
+        echo -e "Click the links below to get your keys."
         echo
         
         {
@@ -212,11 +389,10 @@ main() {
         } > "$DEST_DIR/.env"
         chmod 600 "$DEST_DIR/.env"
         
-        for num in "${SELECTED_PROVIDERS[@]}"; do
-            local name="${PROVIDERS[$num]}"
-            local display_name="${PROVIDER_NAMES[$name]}"
-            local link="${PROVIDER_LINKS[$name]}"
-            local api_key_var="${PROVIDER_API_KEYS[$name]}"
+        for id in "${SELECTED_PROVIDERS[@]}"; do
+            local display_name="${PROVIDER_NAMES[$id]}"
+            local link="${PROVIDER_LINKS[$id]}"
+            local api_key_var="${PROVIDER_API_KEYS[$id]}"
             
             clear_screen
             print_step 3 4 "Configure API Keys"
@@ -278,51 +454,26 @@ main() {
         echo ''
     } > "$DEST_DIR/ccswitch.sh"
     
-    for num in "${SELECTED_PROVIDERS[@]}"; do
-        local name="${PROVIDERS[$num]}"
-        local base_url="${PROVIDER_BASE_URLS[$name]}"
-        local model="${PROVIDER_MODELS[$name]}"
-        local api_key_var="${PROVIDER_API_KEYS[$name]}"
+    for id in "${SELECTED_PROVIDERS[@]}"; do
+        local base_url="${PROVIDER_BASE_URLS[$id]}"
+        local api_key_var="${PROVIDER_API_KEYS[$id]}"
+        local env_vars_json="${PROVIDER_ENV_VARS[$id]}"
+        local func_name="_cc_setup_$id"
         
-        case $name in
-            kimi)
-                cat >> "$DEST_DIR/ccswitch.sh" << EOF
+        cat >> "$DEST_DIR/ccswitch.sh" << EOF
 
-_cc_setup_kimi() {
+$func_name() {
     unset ANTHROPIC_API_KEY
     export ANTHROPIC_BASE_URL="$base_url"
     export ANTHROPIC_AUTH_TOKEN="\$$api_key_var"
-    export ANTHROPIC_MODEL="kimi-for-coding"
-    export ANTHROPIC_SMALL_FAST_MODEL="kimi-for-coding"
+$(echo "$env_vars_json" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+for key, value in data.items():
+    print(f'    export {key}=\"{value}\"')
+" 2>/dev/null)
 }
 EOF
-                ;;
-            glm)
-                cat >> "$DEST_DIR/ccswitch.sh" << EOF
-
-_cc_setup_glm() {
-    unset ANTHROPIC_API_KEY
-    export ANTHROPIC_BASE_URL="$base_url"
-    export ANTHROPIC_AUTH_TOKEN="\$$api_key_var"
-    export ANTHROPIC_DEFAULT_SONNET_MODEL="glm-4.7"
-    export ANTHROPIC_DEFAULT_OPUS_MODEL="glm-4.7"
-    export ANTHROPIC_DEFAULT_HAIKU_MODEL="glm-4.5-air"
-}
-EOF
-                ;;
-            minimax)
-                cat >> "$DEST_DIR/ccswitch.sh" << EOF
-
-_cc_setup_minimax() {
-    unset ANTHROPIC_API_KEY
-    export ANTHROPIC_BASE_URL="$base_url"
-    export ANTHROPIC_AUTH_TOKEN="\$$api_key_var"
-    export ANTHROPIC_MODEL="MiniMax-Text-01"
-    export ANTHROPIC_SMALL_FAST_MODEL="MiniMax-Text-01"
-}
-EOF
-                ;;
-        esac
     done
     
     cat >> "$DEST_DIR/ccswitch.sh" << 'EOF'
@@ -354,7 +505,6 @@ EOF
     
     echo -e "${GREEN}✓${RESET} Script generated: $DEST_DIR/ccswitch.sh"
     
-    # Update shell config
     SHELL_RC="$HOME/.bashrc"
     if [ -n "$ZSH_VERSION" ]; then
         SHELL_RC="$HOME/.zshrc"
@@ -378,11 +528,11 @@ EOF
     # ==========================================
     cat << EOF
 
-    ┌─────────────────────────────────────────────────────────────┐
+${GREEN}    ┌─────────────────────────────────────────────────────────────┐
     │                                                             │
-    │                      ${GREEN}✓ Setup Complete!${RESET}                      │
+    │                      ✓ Setup Complete!                       │
     │                                                             │
-    └─────────────────────────────────────────────────────────────┘
+    └─────────────────────────────────────────────────────────────┘${RESET}
 
 EOF
 
@@ -392,19 +542,18 @@ EOF
     if [[ ${#SELECTED_PROVIDERS[@]} -eq 0 ]]; then
         echo -e "  ${DIM}None (run setup again to add providers)${RESET}"
     else
-        for num in "${SELECTED_PROVIDERS[@]}"; do
-            local name="${PROVIDERS[$num]}"
-            local display_name="${PROVIDER_NAMES[$name]}"
-            echo -e "  ${GREEN}✓${RESET} $display_name"
+        for id in "${SELECTED_PROVIDERS[@]}"; do
+            local name="${PROVIDER_NAMES[$id]}"
+            echo -e "  ${GREEN}✓${RESET} $name"
         done
     fi
     
     echo
     echo -e "${BOLD}Usage:${RESET}"
     
-    for num in "${SELECTED_PROVIDERS[@]}"; do
-        local name="${PROVIDERS[$num]}"
-        echo -e "  ${CYAN}cc $name${RESET}          # Launch with ${PROVIDER_NAMES[$name]}"
+    for id in "${SELECTED_PROVIDERS[@]}"; do
+        local name="${PROVIDER_NAMES[$id]}"
+        echo -e "  ${CYAN}cc $id${RESET}          # Launch with $name"
     done
     echo -e "  ${CYAN}cc${RESET}                # Launch with default (Anthropic)"
     
