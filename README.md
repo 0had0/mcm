@@ -1,48 +1,66 @@
-# Claude Code Multi-Provider Switcher
+# Claude Code Multi-Provider Tools
 
-A modular Bash utility for switching between AI model providers (Kimi, GLM, MiniMax) when using [Claude Code CLI](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview).
+This repository contains tools for managing multiple AI provider configurations for Claude Code CLI.
 
-## Features
+## MCM - Multi-Provider Claude Code Manager (Recommended)
 
-- **Subshell Isolation**: API keys stay isolated, never pollute your environment
-- **Interactive Setup**: Choose which providers to configure
-- **Secrets Protected**: `.env` file excluded from version control
-
-## Installation
+A modern CLI tool inspired by nvm for managing provider configurations.
 
 ```bash
-git clone <your-repo-url> ~/.dotfiles/claude_switcher
-cd ~/.dotfiles/claude_switcher
-./setup.sh
+git clone <repo-url> mcm
+cd mcm
+./mcm.sh install
+source ~/.bashrc
 ```
 
-## Providers
-
-| Provider | Command | Base URL |
-|----------|---------|----------|
-| Kimi | `cc kimi` | api.kimi.com |
-| GLM (Z.AI) | `cc glm` | api.z.ai |
-| MiniMax | `cc minimax` | api.minimax.chat |
-
-## Usage
-
 ```bash
-cc minimax              # Launch with MiniMax
-cc kimi                 # Launch with Kimi
-cc glm                  # Launch with GLM
-cc                      # Launch default (Anthropic)
-cc kimi --help          # Pass flags to CLI
+mcm add kimi        # Add provider
+mcm list            # List providers
+mcm use kimi        # Switch provider
+cc                  # Launch with active provider
+```
+
+### Features
+- **Encrypted API key storage** (AES-256)
+- **Auto-generated encryption key** on install
+- **Provider management**: add, list, switch, remove
+- **Diagnostics**: `mcm doctor`
+
+## claude_switcher (Legacy)
+
+The original shell-based switcher. Kept for reference.
+
+### Installation (Legacy)
+```bash
+./claude_switcher/setup.sh
 ```
 
 ## Adding Providers
 
-Edit `setup.sh` to add new providers. Each provider needs:
-1. An entry in the provider list
-2. An `_cc_setup_<name>()` function in `ccswitch.sh`
-3. API key prompt in setup
+Providers are defined in `providers.json`. Community contributions welcome!
+
+```json
+{
+  "id": "newprovider",
+  "name": "Provider Name",
+  "models": "Model-Name",
+  "base_url": "https://api.example.com",
+  "api_key_var": "PROVIDER_API_KEY",
+  "api_link": "https://example.com/docs",
+  "env_vars": {}
+}
+```
 
 ## Security
 
-- `.env` is never committed (in `.gitignore`)
-- API keys loaded in subshells only
-- Run `chmod 600 ~/.claude_switcher/.env` to secure
+- API keys are **never committed** to version control
+- MCM encrypts keys with AES-256-CBC
+- **Backup your encryption key at `~/.mcm/.key`**
+
+## Supported Providers
+
+| Provider | ID | API Docs |
+|----------|-----|----------|
+| Kimi | `kimi` | [Moonshot](https://platform.moonshot.cn/docs/api/chat) |
+| GLM (Z.AI) | `glm` | [Z.AI](https://z.ai/zh-ai/welcome) |
+| MiniMax | `minimax` | [MiniMax](https://www.minimax.io/) |
