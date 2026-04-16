@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-# Load environment variables securely
 CONFIG_FILE="$HOME/.claude_switcher/.env"
 if [ -f "$CONFIG_FILE" ]; then
     set -a
@@ -31,11 +30,19 @@ _cc_setup_glm() {
     export ANTHROPIC_DEFAULT_HAIKU_MODEL="glm-4.5-air"
 }
 
+_cc_setup_minimax() {
+    unset ANTHROPIC_API_KEY
+    export ANTHROPIC_BASE_URL="https://api.minimax.chat/v1"
+    export ANTHROPIC_AUTH_TOKEN="$MINIMAX_API_KEY"
+    export ANTHROPIC_MODEL="MiniMax-Text-01"
+    export ANTHROPIC_SMALL_FAST_MODEL="MiniMax-Text-01"
+}
+
 # ==========================================
 # Main Dispatcher
 # ==========================================
 
-claude() {
+cc() {
     local provider=""
     local args=()
 

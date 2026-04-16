@@ -1,67 +1,48 @@
-# Claude Code Multi-Model Switcher
+# Claude Code Multi-Provider Switcher
 
-A modular, subshell-isolated Bash utility for seamlessly switching between different AI model providers (like Anthropic, Kimi, and Z.AI) within the [Claude Code CLI](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview).
+A modular Bash utility for switching between AI model providers (Kimi, GLM, MiniMax) when using [Claude Code CLI](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview).
 
 ## Features
 
-- **Environment Isolation**: Executes configurations in a subshell, preventing API keys and base URLs from leaking into your main terminal session.
-- **Environment Variable Driven**: Keeps secrets out of the main logic using a `.env` file.
-- **Dynamic Routing**: Automatically maps `claude <provider>` to specific configurations.
+- **Subshell Isolation**: API keys stay isolated, never pollute your environment
+- **Interactive Setup**: Choose which providers to configure
+- **Secrets Protected**: `.env` file excluded from version control
 
 ## Installation
 
 ```bash
 git clone <your-repo-url> ~/.dotfiles/claude_switcher
 cd ~/.dotfiles/claude_switcher
-./install.sh
+./setup.sh
 ```
 
-Or manually:
+## Providers
 
-1. Clone or copy this directory to `~/.claude_switcher`
-2. Ensure the script is executable: `chmod +x ~/.claude_switcher/claude_switcher.sh`
-3. Source the module in your `~/.bashrc` or `~/.zshrc`:
-   ```bash
-   echo "source ~/.claude_switcher/claude_switcher.sh" >> ~/.bashrc
-   ```
-
-## Configuration
-
-1. Edit your `.env` file:
-   ```bash
-   nano ~/.claude_switcher/.env
-   ```
-2. Add your API keys:
-   ```bash
-   KIMI_API_KEY="your_api_key_here"
-   ZAI_API_KEY="your_api_key_here"
-   ```
+| Provider | Command | Base URL |
+|----------|---------|----------|
+| Kimi | `cc kimi` | api.kimi.com |
+| GLM (Z.AI) | `cc glm` | api.z.ai |
+| MiniMax | `cc minimax` | api.minimax.chat |
 
 ## Usage
 
 ```bash
-claude glm             # Launches Claude Code using Z.AI's GLM models
-claude kimi            # Launches Claude Code using Kimi-for-coding
-claude                 # Launches the default Anthropic Claude configuration
-claude kimi --help     # Passes standard flags directly to the CLI
+cc minimax              # Launch with MiniMax
+cc kimi                 # Launch with Kimi
+cc glm                  # Launch with GLM
+cc                      # Launch default (Anthropic)
+cc kimi --help          # Pass flags to CLI
 ```
 
-## Adding New Providers
+## Adding Providers
 
-Add a new setup function prefixed with `_cc_setup_`:
-
-```bash
-_cc_setup_openai() {
-    unset ANTHROPIC_API_KEY
-    export ANTHROPIC_BASE_URL="https://api.openai-proxy.example.com"
-    export ANTHROPIC_AUTH_TOKEN="$OPENAI_API_KEY"
-}
-```
-
-Then call it with: `claude openai`
+Edit `setup.sh` to add new providers. Each provider needs:
+1. An entry in the provider list
+2. An `_cc_setup_<name>()` function in `ccswitch.sh`
+3. API key prompt in setup
 
 ## Security
 
-- The `.env` file contains secrets and is excluded from version control via `.gitignore`
-- The `install.sh` script sets `chmod 600` on the `.env` file
-- API keys are only loaded in subshells, preventing environment pollution
+- `.env` is never committed (in `.gitignore`)
+- API keys loaded in subshells only
+- Run `chmod 600 ~/.claude_switcher/.env` to secure
