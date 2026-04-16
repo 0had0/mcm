@@ -7,7 +7,18 @@ MCM_DIR="${MCM_DIR:-$HOME/.mcm}"
 MCM_KEYS="$MCM_DIR/.keys.enc"
 MCM_CONFIG="$MCM_DIR/config.sh"
 MCM_LOG="$MCM_DIR/mcm.log"
-PROVIDERS_FILE="${MCM_PROVIDERS:-$HOME/.mcm/providers.conf}"
+
+_get_providers_file() {
+    if [[ -n "$MCM_PROVIDERS" && -f "$MCM_PROVIDERS" ]]; then
+        echo "$MCM_PROVIDERS"
+    elif [[ -f "$MCM_DIR/providers.conf" ]]; then
+        echo "$MCM_DIR/providers.conf"
+    elif [[ -f "${BASH_SOURCE[0]%/*}/providers.conf" ]]; then
+        echo "${BASH_SOURCE[0]%/*}/providers.conf"
+    else
+        echo "$HOME/.mcm/providers.conf"
+    fi
+}
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -69,11 +80,11 @@ _mcm_list_providers() {
     
     while IFS='|' read -r id name models base_url api_key_var api_link; do
         [[ -z "$id" || "$id" =~ ^# ]] && continue
-        [[ "$id" != "${id%%_*}" ]] && continue
+        [[ -z "$base_url" ]] && continue
         [[ "$filter" != "all" && "$id" != "$filter" ]] && continue
         echo "$id|$name|$models|$base_url|$api_key_var|$api_link"
         found=1
-    done < "$PROVIDERS_FILE"
+    done < "$(_get_providers_file)"
     
     return $found
 }
@@ -99,7 +110,7 @@ _mcm_get_env_vars() {
     while IFS='|' read -r i n v; do
         [[ -z "$i" || "$i" =~ ^# ]] && continue
         [[ "$i" == "${id}|"* ]] && echo "${i##*|}|${v}"
-    done < "$PROVIDERS_FILE"
+    done < "$(_get_providers_file)"
 }
 
 install() {
@@ -207,7 +218,7 @@ list_providers() {
     
     while IFS='|' read -r id name models base_url api_key_var api_link; do
         [[ -z "$id" || "$id" =~ ^# ]] && continue
-        [[ "$id" != "${id%%_*}" ]] && continue
+        [[ -z "$base_url" ]] && continue
         
         idx=$((idx + 1))
         local has_key=$(echo "$keys" | grep -q "\"$id\"" && echo "yes" || echo "no")
@@ -220,7 +231,7 @@ list_providers() {
         echo -e "  ${MAGENTA}$id${RESET}  $name"
         echo -e "       ${DIM}$models${RESET} $key_icon"
         echo
-    done < "$PROVIDERS_FILE"
+    done < "$(_get_providers_file)"
     
     [[ "$current" != "none" ]] && echo -e "${DIM}→ = active ($current)${RESET}"
 }

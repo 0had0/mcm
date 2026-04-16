@@ -3,7 +3,18 @@
 export MCM_DIR="${MCM_DIR:-$HOME/.mcm}"
 export MCM_KEYS="$MCM_DIR/.keys.enc"
 export MCM_CONFIG="$MCM_DIR/config.sh"
-export MCM_PROVIDERS="$MCM_DIR/providers.conf"
+
+_cc_providers_file() {
+    if [[ -n "$MCM_PROVIDERS" && -f "$MCM_PROVIDERS" ]]; then
+        echo "$MCM_PROVIDERS"
+    elif [[ -f "$MCM_DIR/providers.conf" ]]; then
+        echo "$MCM_DIR/providers.conf"
+    elif [[ -f "${CCWRAP_DIR:-/usr/local/bin}/providers.conf" ]]; then
+        echo "${CCWRAP_DIR:-/usr/local/bin}/providers.conf"
+    else
+        echo "$MCM_DIR/providers.conf"
+    fi
+}
 
 cc() {
     local provider=""
@@ -16,6 +27,8 @@ cc() {
     [[ -z "$provider" || "$provider" == "none" ]] && { command claude "${args[@]}"; return $?; }
     
     local key_file="$MCM_DIR/.key"
+    local providers_file=$(_cc_providers_file)
+    
     [[ ! -f "$key_file" || ! -f "$MCM_KEYS" ]] && { _cc_err "MCM not configured"; return 1; }
     
     local key=$(cat "$key_file")
@@ -24,8 +37,7 @@ cc() {
     
     [[ -z "$api_key" ]] && { echo -e "\033[0;31mError:\033[0m Provider '$provider' not configured. Run 'mcm add $provider'"; return 1; }
     
-    local base_url=$(grep "^$provider|" "$MCM_PROVIDERS" 2>/dev/null | head -1 | cut -d'|' -f4)
-    [[ -z "$base_url" ]] && base_url=$(grep "^$provider|" "$MCM_PROVIDERS" 2>/dev/null | head -1 | cut -d'|' -f4)
+    local base_url=$(grep "^$provider|" "$providers_file" 2>/dev/null | head -1 | cut -d'|' -f4)
     
     unset ANTHROPIC_API_KEY
     export ANTHROPIC_BASE_URL="$base_url"
@@ -33,7 +45,7 @@ cc() {
     
     while IFS='|' read -r id var val; do
         [[ "$id" == "$provider|"* ]] && export "${id##*$provider|}"="$val"
-    done < "$MCM_PROVIDERS" 2>/dev/null
+    done < "$providers_file" 2>/dev/null
     
     command claude "${args[@]}"
 }
