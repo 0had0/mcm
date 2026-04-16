@@ -71,7 +71,7 @@ makepkg -si
 
 Providers are stored in `providers.json` and fetched from:
 ```
-https://raw.githubusercontent.com/hadih/mcm/main/mcm/providers.json
+https://raw.githubusercontent.com/hadih/mcm/refs/heads/main/mcm/providers.json
 ```
 
 To add a new provider, submit a PR to [`mcm/providers.json`](mcm/providers.json).
