@@ -458,6 +458,48 @@ cmd_doctor() {
     [[ $issues -eq 0 ]] && _mcm_ok "All checks passed!" || _mcm_warn "$issues issue(s)"
 }
 
+cmd_selfupdate() {
+    echo
+    echo -e "${BOLD}Updating MCM to latest version...${RESET}"
+    echo
+    
+    if [[ ! -w "${BASH_SOURCE[0]}" ]]; then
+        _mcm_err "Cannot update: ${BASH_SOURCE[0]} is not writable"
+        echo "Try: sudo mcm selfupdate"
+        exit 1
+    fi
+    
+    echo -e "${DIM}Downloading latest mcm.sh...${RESET}"
+    local new_script=$(curl -sSL --max-time 30 "$MCM_SCRIPT_URL")
+    
+    if [[ -z "$new_script" ]]; then
+        _mcm_err "Failed to download latest version"
+        exit 1
+    fi
+    
+    local current_version=$(grep '^VERSION=' "${BASH_SOURCE[0]}" | cut -d'"' -f2)
+    local new_version=$(echo "$new_script" | grep '^VERSION=' | cut -d'"' -f2)
+    
+    echo "$new_script" > "${BASH_SOURCE[0]}"
+    chmod +x "${BASH_SOURCE[0]}"
+    
+    echo -e "${DIM}Downloading latest ccwrap.sh...${RESET}"
+    local new_ccwrap=$(curl -sSL --max-time 30 "$MCM_CCWARP_URL")
+    
+    if [[ -n "$new_ccwrap" ]]; then
+        local ccwrap_path="${BASH_SOURCE[0]%/*}/ccwrap.sh"
+        if [[ -w "$ccwrap_path" ]]; then
+            echo "$new_ccwrap" > "$ccwrap_path"
+            chmod +x "$ccwrap_path"
+        fi
+    fi
+    
+    echo
+    _mcm_ok "Updated from $current_version to $new_version"
+    echo
+    echo -e "${DIM}Run ${CYAN}mcm --version${RESET}${DIM} to verify${RESET}"
+}
+
 cmd_help() {
     cat << EOF
 
@@ -472,6 +514,7 @@ ${BOLD}USAGE:${RESET}
 ${BOLD}COMMANDS:${RESET}
     ${CYAN}install${RESET}             Install MCM and generate encryption key
     ${CYAN}update${RESET}              Fetch latest providers from registry
+    ${CYAN}selfupdate${RESET}          Update MCM to latest version
     ${CYAN}add <id>${RESET}           Add API key for a provider
     ${CYAN}list${RESET}                List all providers
     ${CYAN}use <id>${RESET}            Set active provider
@@ -481,6 +524,7 @@ ${BOLD}COMMANDS:${RESET}
 
 ${BOLD}EXAMPLES:${RESET}
     mcm install              Install MCM
+    mcm selfupdate           Update MCM itself
     mcm update               Fetch latest providers
     mcm add kimi             Add Kimi
     mcm list                 Show providers
@@ -502,6 +546,7 @@ main() {
     case "$cmd" in
         install|i) cmd_install ;;
         update|refresh) cmd_update ;;
+        selfupdate|upgrade) cmd_selfupdate ;;
         add|a) cmd_add "$@" ;;
         list|ls|l) cmd_list ;;
         use|switch|u) cmd_use "$@" ;;
