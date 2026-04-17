@@ -353,6 +353,13 @@ cmd_use() {
         exit 1
     fi
     
+    if [[ "$id" == "none" || "$id" == "default" ]]; then
+        _mcm_set_current "none"
+        _mcm_ok "Using default (Anthropic)"
+        echo -e "${DIM}Run ${CYAN}cc${RESET}${DIM} to launch Claude Code with default${RESET}"
+        return
+    fi
+    
     local info=$(_mcm_parse_providers "info" "$id")
     [[ -z "$info" ]] && _mcm_err "Unknown provider: $id" && exit 1
     
