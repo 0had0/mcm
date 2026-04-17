@@ -10,6 +10,8 @@ MCM_CACHE="$MCM_DIR/providers.cache"
 MCM_LOG="$MCM_DIR/mcm.log"
 
 MCM_REGISTRY="${MCM_REGISTRY:-https://raw.githubusercontent.com/0had0/mcm/master/mcm/providers.json}"
+MCM_SCRIPT_URL="${MCM_SCRIPT_URL:-https://raw.githubusercontent.com/0had0/mcm/master/mcm/mcm.sh}"
+MCM_CCWARP_URL="${MCM_CCWARP_URL:-https://raw.githubusercontent.com/0had0/mcm/master/mcm/ccwrap.sh}"
 CACHE_AGE_MAX="${CACHE_AGE_MAX:-86400}"
 
 RED='\033[0;31m'
