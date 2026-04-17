@@ -2,8 +2,8 @@
 
 [![][ci-badge]][ci] [![][release-badge]][releases]
 
-[ci-badge]: https://github.com/hadih/mcm/workflows/CI/badge.svg
-[release-badge]: https://img.shields.io/github/v/release/hadih/mcm
+[ci-badge]: https://github.com/0had0/mcm/workflows/CI/badge.svg
+[release-badge]: https://img.shields.io/github/v/release/0had0/mcm
 
 A CLI tool for managing multiple AI provider configurations for Claude Code CLI, inspired by nvm.
 

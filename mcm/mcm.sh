@@ -9,7 +9,7 @@ MCM_CONFIG="$MCM_DIR/config.sh"
 MCM_CACHE="$MCM_DIR/providers.cache"
 MCM_LOG="$MCM_DIR/mcm.log"
 
-MCM_REGISTRY="${MCM_REGISTRY:-https://raw.githubusercontent.com/hadih/mcm/refs/heads/main/mcm/providers.json}"
+MCM_REGISTRY="${MCM_REGISTRY:-https://raw.githubusercontent.com/hadih/mcm/master/mcm/providers.json}"
 CACHE_AGE_MAX="${CACHE_AGE_MAX:-86400}"
 
 RED='\033[0;31m'
